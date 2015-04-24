@@ -83,7 +83,7 @@ public class MainFrame extends JFrame {
 	// 作者单选按钮
 	private JRadioButton authorRadioButton = new JRadioButton("作者", false);
 	// 作者类型,收藏与否
-//	private JComboBox<String> favoriteAuthorComboBox = new JComboBox<>(new String[]{"所有", "已收藏", "未收藏"});
+	private JComboBox<String> favoriteAuthorComboBox = new JComboBox<>(new String[]{"所有", "已收藏", "未收藏"});
 	// 书名单选按钮
 	private JRadioButton booknameRadioButton = new JRadioButton("书名", false);
 	// 评分下拉框
@@ -285,8 +285,6 @@ public class MainFrame extends JFrame {
 		});
 		typePanel.add(typeRadioButton);
 		typePanel.add(authorRadioButton);
-		// TODO 增加对收藏作者的检索
-//		typePanel.add(favoriteAuthorComboBox);
 		typePanel.add(booknameRadioButton);
 		typePanel.add(searchTextField);
 		typePanel.add(clearButton);
@@ -296,12 +294,27 @@ public class MainFrame extends JFrame {
 			
 			@Override
 			public void actionPerformed(ActionEvent actionevent) {
-				searchAndUpdateTree();
+//				searchAndUpdateTree();
+				updateTable(currentKey, 1);
+			}
+		});
+		// 作者类型按钮点击事件
+		favoriteAuthorComboBox.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent actionevent) {
+				if (searchType == SearchType.AUTHOR){
+					searchAndUpdateTree();
+				} else {
+					updateTable(currentKey, 1);
+				}
 			}
 		});
 		JPanel otherSearchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
 		otherSearchPanel.add(new JLabel("评分:"));
 		otherSearchPanel.add(scoreComboBox);
+		otherSearchPanel.add(new JLabel("作者:"));
+		otherSearchPanel.add(favoriteAuthorComboBox);
 
 		// 清除按钮点击事件
 		clearButton.addActionListener(new ActionListener() {
@@ -556,7 +569,7 @@ public class MainFrame extends JFrame {
 									+ "<br>请另存以后自行查看</body></html>");
 						}
 					} else if (detailTable.getColumnName(
-							detailTable.getSelectedColumn()).equals("F")) { // 点击路径列
+							detailTable.getSelectedColumn()).equals("F")) { // 点击评分列,清零评分
 						// 点击选择评分并更新数据库
 						int index = detailTable.getSelectedRow();
 						
@@ -708,7 +721,8 @@ public class MainFrame extends JFrame {
 	 */
 	private void searchAndUpdateTree() {
 		String condition = searchTextField.getText();
-		keys = SqliteHelper.getKeys(searchType, condition);
+		String favoriteAuthorType = (String) favoriteAuthorComboBox.getSelectedItem();
+		keys = SqliteHelper.getKeys(searchType, condition, favoriteAuthorType);
 		root.removeAllChildren();
 		for (String key : keys) {
 			DefaultMutableTreeNode node = new DefaultMutableTreeNode(key);
@@ -732,13 +746,18 @@ public class MainFrame extends JFrame {
 	 */
 	private void updateTable(String key, int pageNo) {
 		Map<SearchType, Object> map = new HashMap<SearchType, Object>();
-		if (searchType != SearchType.NAME){
-			String condition = (key == null || key.equals(""))? searchTextField.getText(): key;
+		if (searchType == SearchType.AUTHOR){ // 检索作者
+			String condition = (key == null || key.isEmpty())? searchTextField.getText(): key;
 			if (!condition.equals("")){
 				map.put(searchType, condition);
 			}
-		} else {
-			if (key != null && !key.trim().equals("")){
+		} else if (searchType == SearchType.TYPE){ // 
+			String condition = (key == null || key.isEmpty())? searchTextField.getText(): key;
+			if (!condition.equals("")){
+				map.put(searchType, condition);
+			}
+		} else  if (searchType == SearchType.NAME){ // 根据书名检索
+			if (key != null && !key.trim().isEmpty()){
 				map.put(SearchType.DATE, key);
 			}
 			String condition = searchTextField.getText();
@@ -746,6 +765,8 @@ public class MainFrame extends JFrame {
 				map.put(searchType, condition);
 			}
 		}
+		map.put(SearchType.FAVORITE_AUTHOR, (String) favoriteAuthorComboBox.getSelectedItem());
+		// 评分条件
 		String score = (String) scoreComboBox.getSelectedItem();
 		if (!score.equals("all")){
 			Integer s = Integer.parseInt(score);
@@ -1009,38 +1030,50 @@ public class MainFrame extends JFrame {
 		int ret = JOptionPane.showConfirmDialog(this, "是否要删除选定的文件?", "确认窗口"
 				, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
 		if (ret == JOptionPane.YES_OPTION){
-			int[] rows = detailTable.getSelectedRows();
-			Arrays.sort(rows);
-			DefaultTableModel model = (DefaultTableModel) detailTable.getModel();
-			for (int i = rows.length; i > 0; i--){
-				int row = rows[i - 1];
-				Book book = bookList.get(row);
-				SqliteHelper.deleteBook(book);
-				model.removeRow(row);
-			}
+			showDialog("正在删除中!", Conf.getImportTimeout(), new Runnable() {
+				
+				@Override
+				public void run() {
+					int[] rows = detailTable.getSelectedRows();
+					Arrays.sort(rows);
+					DefaultTableModel model = (DefaultTableModel) detailTable.getModel();
+					for (int i = rows.length; i > 0; i--){
+						int row = rows[i - 1];
+						Book book = bookList.get(row);
+						SqliteHelper.deleteBook(book);
+						model.removeRow(row);
+					}
+				}
+			});
+		} else {
+			return;
 		}
-		showDialog("删除完成!");
 	}
 	
 	private void deleteByDate(){
 		int ret = JOptionPane.showConfirmDialog(this, "是否要删除选定的文件?", "确认窗口"
 				, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
 		if (ret == JOptionPane.YES_OPTION){
-			final TreePath[] selectionPaths = recordTree.getSelectionPaths();
-			for (TreePath treePath : selectionPaths) {
-				DefaultMutableTreeNode node = (DefaultMutableTreeNode) treePath
-						.getLastPathComponent();
-				if (node.getLevel() == 0){
-					continue;
+			showDialog("正在删除中!", Conf.getImportTimeout(), new Runnable() {
+				
+				@Override
+				public void run() {
+					final TreePath[] selectionPaths = recordTree.getSelectionPaths();
+					for (TreePath treePath : selectionPaths) {
+						DefaultMutableTreeNode node = (DefaultMutableTreeNode) treePath
+								.getLastPathComponent();
+						if (node.getLevel() == 0){
+							continue;
+						}
+						String key = (String) node.getUserObject();
+						SqliteHelper.deleteByDate(key);
+						root.remove(node);
+					}
+					searchAndUpdateTree();
 				}
-				String key = (String) node.getUserObject();
-				SqliteHelper.deleteByDate(key);
-				root.remove(node);
-			}
+			});
 		} else {
 			return;
 		}
-		searchAndUpdateTree();
-		showDialog("删除完成!");
 	}
 }

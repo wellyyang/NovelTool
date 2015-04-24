@@ -19,8 +19,8 @@ public class Book {
 	private String author;
 	@DatabaseField
 	private boolean newest;
-	@DatabaseField
-	private int score;
+	@DatabaseField(defaultValue = "0")
+	private int score = 0;
 	@DatabaseField
 	private long length;
 	@DatabaseField(index = true)
@@ -36,7 +36,7 @@ public class Book {
 	@DatabaseField(foreign = true
 			, foreignAutoCreate = true
 			, columnName = "bc_id"
-			, foreignAutoRefresh=true
+//			, foreignAutoRefresh=true
 			)
 	private BookContent bc;
 

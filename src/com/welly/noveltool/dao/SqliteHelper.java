@@ -3,6 +3,8 @@
 import java.sql.Date;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -65,7 +67,7 @@ public class SqliteHelper {
 
 	public static void cleanCache(){
 		try {
-			bookContentDao.executeRawNoArgs("VACUUM");
+			bookDao.executeRawNoArgs("VACUUM");
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -73,6 +75,7 @@ public class SqliteHelper {
 
 	public static void deleteBook(Book book){
 		try {
+			bookContentDao.delete(book.getBc());
 			bookDao.delete(book);
 			deletePhantomTypes(book.getType());
 		} catch (SQLException e) {
@@ -103,10 +106,11 @@ public class SqliteHelper {
 							" where year = "  + year + 
 							" and month = " + month);
 					
-					for(String[] strs: results){
-						String type = strs[0];
-						deletePhantomTypes(type);
+					String[] types = new String[results.size()];
+					for(int i = 0; i< types.length; i++){
+						types[i] = results.get(i)[0];
 					}
+					deletePhantomTypes(types);
 					return null;
 				}
 			});
@@ -128,25 +132,49 @@ public class SqliteHelper {
 		}
 	}
 
-	public static void deletePhantomTypes(String type){
-		if (type == null || type.length() == 0){
+	public static void deletePhantomTypes(String...types){
+		if (types == null || types.length == 0){
 			return;
 		}
-		String[] types = type.split("\\s+");
-		for (String t: types) {
-			String deletePhantomType = "delete from type where name = '" + t + "' " +
-					" and not exists (select id from book b where b.type = '" + t + "' or " +
-							"b.type like '%" + t + " %'" + " or " +
-							"b.type like '% " + t + "%'" + ")";
-			try {
-				typeDao.executeRaw(deletePhantomType);
-			} catch (SQLException e) {
-				e.printStackTrace();
+		Set<String> typeSet = new HashSet<>();
+		for (String type: types){
+			String[] typeArr = type.split("\\s+");
+			for (String t: typeArr){
+				typeSet.add(t);
 			}
 		}
+		StringBuilder deletePhantomType = new StringBuilder("delete from type where ");
+		Iterator<String> iter = typeSet.iterator();
+		while (iter.hasNext()) {
+//			String deletePhantomType = "delete from type where name = '" + t + "' " +
+//					" and not exists (select id from book b where b.type = '" + t + "' or " +
+//							"b.type like '%" + t + " %'" + " or " +
+//							"b.type like '% " + t + "%'" + ")";
+			String subCond = createDeletePhantomTypesSubCond(iter.next());
+			deletePhantomType.append(subCond);
+			if (iter.hasNext()){
+				deletePhantomType.append(" or ");
+			}
+		}
+		
+		try {
+			typeDao.executeRaw(deletePhantomType.toString());
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private static String createDeletePhantomTypesSubCond(String type){
+		String query = "(name = '" + type + "' " +
+				" and not exists (select id from book b where b.type = '" + type + "' or " +
+						"b.type like '% " + type + " %'" + 
+						" or " +
+						"b.type like '" + type + " %'" + 
+						" or " +
+						"b.type like '% " + type + "'" + "))";
+		return query;
 	}
 
-	@SuppressWarnings("unchecked")
 	public static long getBookCount(Map<SearchType, Object> map, boolean isEqual){
 		int size = map == null? 0: map.size();
 		long count = 0;
@@ -154,47 +182,102 @@ public class SqliteHelper {
 			if (size == 0){
 				count = bookDao.countOf(bookDao.queryBuilder().setCountOf(true).where().eq("newest", true).prepare());
 			} else {
-				int i = 0;
 				Where<Book, Long> where = bookDao.queryBuilder().setCountOf(true).where();
-				
-				for (SearchType type: map.keySet()) {
-					if (i > 0){
-						where = where.and();
-					}
-					if (type == SearchType.AUTHOR || type == SearchType.NAME){
-						if ("None".equalsIgnoreCase((String) map.get(type))){
-							where = where.eq(type.toString(), "None");
-						} else if (isEqual){
-							where = where.eq(type.toString(), (String) map.get(type));
-						} else {
-							where = where.like(type.toString(), "%" + map.get(type) + "%");
-						}
-					} else if (type == SearchType.SCORE){
-						where = where.eq(type.toString(), (Integer) map.get(type));
-					} else if (type == SearchType.TYPE){
-						if ("None".equalsIgnoreCase((String) map.get(type))){
-							where = where.eq(type.toString(), "None");
-						} else if (isEqual){
-							where = where.or(where.like(type.toString(), "%" + map.get(type) + " %")
-									, where.like(type.toString(), "% " + map.get(type) + "%")
-									, where.eq(type.toString(), (String) (map.get(type))));
-						} else {
-							where = where.like(type.toString(), "%" + map.get(type) + "%");
-						}
-					} else if (type == SearchType.DATE){
-						String date = map.get(SearchType.DATE).toString();
-						int year = Integer.parseInt(date.split("-")[0]);
-						int month = Integer.parseInt(date.split("-")[1]);
-						where = where.eq("year", year).and().eq("month", month);
-					}
-					i++;
-				}
+				where = createWhereClause(where, map, isEqual);
+				System.out.println(where.getStatement());
 				count = bookDao.countOf(where.and().eq("newest", true).prepare());
 			}
 		} catch (SQLException e){
 			e.printStackTrace();
 		}
 		return count;
+	}
+	
+	@SuppressWarnings("unchecked")
+	private static <T, P> Where<T, P> createWhereClause(Where<T, P> where, Map<SearchType, Object> map, boolean isEqual) throws SQLException{
+		int i = 0;
+		if (map.containsKey(SearchType.TYPE)){ // 必须把type放第一位,不然sql语句有问题
+			i++;
+			SearchType type = SearchType.TYPE;
+			if ("None".equalsIgnoreCase((String) map.get(type))){
+				where = where.eq(type.toString(), "None");
+			} else if (isEqual){
+				where = where.or(where.like(type.toString(), map.get(type) + " %")
+						, where.like(type.toString(), "% " + map.get(type))
+						, where.like(type.toString(), "% " + map.get(type) + " %")
+						, where.eq(type.toString(), (String) (map.get(type))));
+			} else {
+				where = where.like(type.toString(), "%" + map.get(type) + "%");
+			}
+		}
+		for (SearchType type: map.keySet()) {
+			if (type == SearchType.TYPE) {
+				continue;
+			}
+			
+			if (type == SearchType.AUTHOR || type == SearchType.NAME){
+				if (i > 0){
+					where = where.and();
+				}
+				if ("None".equalsIgnoreCase((String) map.get(type))){
+					where = where.eq(type.toString(), "None");
+				} else if (isEqual){
+					where = where.eq(type.toString(), (String) map.get(type));
+				} else {
+					where = where.like(type.toString(), "%" + map.get(type) + "%");
+				}
+			} else if (type == SearchType.SCORE){
+				Integer score = (Integer) map.get(type);
+				if (score != null && score.intValue() == 0){
+					if (i > 0){
+						where = where.and(where, where.or(where.eq(type.toString(), (Integer) map.get(type))
+								, where.isNull(type.toString())));
+					} else {
+						where = where.or(where.eq(type.toString(), (Integer) map.get(type))
+								, where.isNull(type.toString()));
+					}
+				} else {
+					if (i > 0){
+						where = where.and();
+					}
+					where = where.eq(type.toString(), (Integer) map.get(type));
+				}
+			} /*else if (type == SearchType.TYPE){
+				if ("None".equalsIgnoreCase((String) map.get(type))){
+					where = where.eq(type.toString(), "None");
+				} else if (isEqual){
+					where = where.or(where.like(type.toString(), map.get(type) + " %")
+							, where.like(type.toString(), "% " + map.get(type))
+							, where.like(type.toString(), "% " + map.get(type) + " %")
+							, where.eq(type.toString(), (String) (map.get(type))));
+				} else {
+					where = where.like(type.toString(), "%" + map.get(type) + "%");
+				}
+			}*/ else if (type == SearchType.DATE){
+				if (i > 0){
+					where = where.and();
+				}
+				String date = map.get(SearchType.DATE).toString();
+				int year = Integer.parseInt(date.split("-")[0]);
+				int month = Integer.parseInt(date.split("-")[1]);
+				where = where.eq("year", year).and().eq("month", month);
+			} else if (type == SearchType.FAVORITE_AUTHOR){
+				if (i > 0){
+					where = where.and();
+				}
+				String favoriteAuthorTYpe = (String) map.get(type);
+				if (favoriteAuthorTYpe.equals("已收藏")){
+					where = where.in("author", favoriteAuthorDao.queryBuilder().selectColumns("name"));
+				} else if (favoriteAuthorTYpe.equals("未收藏")){
+					where = where.notIn("author", favoriteAuthorDao.queryBuilder().selectColumns("name"));
+				} else {
+					// true条件,避免末尾的and多余
+					where = where.gt("lastmodified", 0);
+				}
+			}
+			i++;
+		}
+		return where;
 	}
 
 	public static String getContent(Long id){
@@ -207,7 +290,7 @@ public class SqliteHelper {
 	}
 
 	public static String[] getKeys(SearchType searchType, String value) {
-		return getKeys(searchType, value, null);
+		return getKeys(searchType, value, "所有");
 	}
 	
 	public static String[] getKeys(SearchType searchType, String value, String favoriteAuthorType) {
@@ -366,7 +449,6 @@ public class SqliteHelper {
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	public static List<Book> queryAll(Map<SearchType, Object> map, boolean isEqual) {
 		int size = map == null? 0: map.size();
 		List<Book> list = null;
@@ -376,41 +458,8 @@ public class SqliteHelper {
 			if (size == 0){
 				list = bookDao.query(qb.where().eq("newest", true).prepare());
 			} else {
-				int i = 0;
 				Where<Book, Long> where = qb.where();
-				
-				for (SearchType type: map.keySet()) {
-					if (i > 0){
-						where = where.and();
-					}
-					if (type == SearchType.AUTHOR || type == SearchType.NAME){
-						if ("None".equalsIgnoreCase((String) map.get(type))){
-							where = where.eq(type.toString(), "None");
-						} else if (isEqual){
-							where = where.eq(type.toString(), (String) map.get(type));
-						} else {
-							where = where.like(type.toString(), "%" + map.get(type) + "%");
-						}
-					} else if (type == SearchType.SCORE){
-						where = where.eq(type.toString(), (Integer) map.get(type));
-					} else if (type == SearchType.TYPE){
-						if ("None".equalsIgnoreCase((String) map.get(type))){
-							where = where.eq(type.toString(), "None");
-						} else if (isEqual){
-							where = where.or(where.like(type.toString(), "%" + map.get(type) + " %")
-									, where.like(type.toString(), "% " + map.get(type) + "%")
-									, where.eq(type.toString(), (String) (map.get(type))));
-						} else {
-							where = where.like(type.toString(), "%" + map.get(type) + "%");
-						}
-					} else if (type == SearchType.DATE){
-						String date = map.get(SearchType.DATE).toString();
-						int year = Integer.parseInt(date.split("-")[0]);
-						int month = Integer.parseInt(date.split("-")[1]);
-						where = where.eq("year", year).and().eq("month", month);
-					}
-					i++;
-				}
+				where = createWhereClause(where, map, isEqual);
 				list = bookDao.query(where.and().eq("newest", true).prepare());
 			}
 		} catch (SQLException e){
@@ -419,7 +468,6 @@ public class SqliteHelper {
 		return list == null? new ArrayList<Book>(): list;
 	}
 	
-	@SuppressWarnings("unchecked")
 	public static List<Book> queryPage(Map<SearchType, Object> map, int pageno, boolean isEqual) {
 		int size = map == null? 0: map.size();
 		List<Book> list = null;
@@ -431,41 +479,8 @@ public class SqliteHelper {
 			if (size == 0){
 				list = bookDao.query(qb.where().eq("newest", true).prepare());
 			} else {
-				int i = 0;
 				Where<Book, Long> where = qb.where();
-				
-				for (SearchType type: map.keySet()) {
-					if (i > 0){
-						where = where.and();
-					}
-					if (type == SearchType.AUTHOR || type == SearchType.NAME){
-						if ("None".equalsIgnoreCase((String) map.get(type))){
-							where = where.eq(type.toString(), "None");
-						} else if (isEqual){
-							where = where.eq(type.toString(), (String) map.get(type));
-						} else {
-							where = where.like(type.toString(), "%" + map.get(type) + "%");
-						}
-					} else if (type == SearchType.SCORE){
-						where = where.eq(type.toString(), (Integer) map.get(type));
-					} else if (type == SearchType.TYPE){
-						if ("None".equalsIgnoreCase((String) map.get(type))){
-							where = where.eq(type.toString(), "None");
-						} else if (isEqual){
-							where = where.or(where.like(type.toString(), "%" + map.get(type) + " %")
-									, where.like(type.toString(), "% " + map.get(type) + "%")
-									, where.eq(type.toString(), (String) (map.get(type))));
-						} else {
-							where = where.like(type.toString(), "%" + map.get(type) + "%");
-						}
-					} else if (type == SearchType.DATE){
-						String date = map.get(SearchType.DATE).toString();
-						int year = Integer.parseInt(date.split("-")[0]);
-						int month = Integer.parseInt(date.split("-")[1]);
-						where = where.eq("year", year).and().eq("month", month);
-					}
-					i++;
-				}
+				where = createWhereClause(where, map, isEqual);
 				list = bookDao.query(where.and().eq("newest", true).prepare());
 			}
 		} catch (SQLException e){

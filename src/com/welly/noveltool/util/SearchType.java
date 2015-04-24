@@ -6,7 +6,7 @@ package com.welly.noveltool.util;
  *
  */
 public enum SearchType {
-	AUTHOR, TYPE, SCORE, NAME, DATE;
+	AUTHOR, TYPE, SCORE, NAME, DATE, FAVORITE_AUTHOR;
 	
 	@Override
 	public String toString() {

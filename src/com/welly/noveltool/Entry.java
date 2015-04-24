@@ -4,6 +4,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 
 import com.welly.noveltool.dao.SqliteHelper;
 import com.welly.noveltool.model.MainFrame;
@@ -20,16 +21,16 @@ public class Entry {
 	public static void main(String[] args) {		
 		MainFrame mainFrame = new MainFrame("小说管理工具v" + version);
 		mainFrame.setVisible(true);
+//		mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		mainFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 		mainFrame.addWindowListener(new WindowAdapter() {
 			@Override
 			public void windowClosing(WindowEvent windowevent) {
-				mainFrame.setVisible(false);
-				SqliteHelper.cleanCache();
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
+				int ret = JOptionPane.showConfirmDialog(mainFrame, "是否需要后台整理数据库文件?", "确认窗口"
+						, JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+				if (ret == JOptionPane.YES_OPTION){
+					mainFrame.setVisible(false);
+					SqliteHelper.cleanCache();
 				}
 				System.exit(0);
 			}
