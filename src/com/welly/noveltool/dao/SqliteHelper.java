@@ -196,25 +196,7 @@ public class SqliteHelper {
 	@SuppressWarnings("unchecked")
 	private static <T, P> Where<T, P> createWhereClause(Where<T, P> where, Map<SearchType, Object> map, boolean isEqual) throws SQLException{
 		int i = 0;
-		if (map.containsKey(SearchType.TYPE)){ // 必须把type放第一位,不然sql语句有问题
-			i++;
-			SearchType type = SearchType.TYPE;
-			if ("None".equalsIgnoreCase((String) map.get(type))){
-				where = where.eq(type.toString(), "None");
-			} else if (isEqual){
-				where = where.or(where.like(type.toString(), map.get(type) + " %")
-						, where.like(type.toString(), "% " + map.get(type))
-						, where.like(type.toString(), "% " + map.get(type) + " %")
-						, where.eq(type.toString(), (String) (map.get(type))));
-			} else {
-				where = where.like(type.toString(), "%" + map.get(type) + "%");
-			}
-		}
 		for (SearchType type: map.keySet()) {
-			if (type == SearchType.TYPE) {
-				continue;
-			}
-			
 			if (type == SearchType.AUTHOR || type == SearchType.NAME){
 				if (i > 0){
 					where = where.and();
@@ -242,18 +224,32 @@ public class SqliteHelper {
 					}
 					where = where.eq(type.toString(), (Integer) map.get(type));
 				}
-			} /*else if (type == SearchType.TYPE){
+			} else if (type == SearchType.TYPE){
 				if ("None".equalsIgnoreCase((String) map.get(type))){
+					if (i > 0){
+						where = where.and();
+					}
 					where = where.eq(type.toString(), "None");
 				} else if (isEqual){
-					where = where.or(where.like(type.toString(), map.get(type) + " %")
-							, where.like(type.toString(), "% " + map.get(type))
-							, where.like(type.toString(), "% " + map.get(type) + " %")
-							, where.eq(type.toString(), (String) (map.get(type))));
+					if (i > 0){
+						where = where.and(where, 
+								where = where.or(where.like(type.toString(), map.get(type) + " %")
+										, where.like(type.toString(), "% " + map.get(type))
+										, where.like(type.toString(), "% " + map.get(type) + " %")
+										, where.eq(type.toString(), (String) (map.get(type)))));
+					} else {
+						where = where.or(where.like(type.toString(), map.get(type) + " %")
+								, where.like(type.toString(), "% " + map.get(type))
+								, where.like(type.toString(), "% " + map.get(type) + " %")
+								, where.eq(type.toString(), (String) (map.get(type))));
+					}
 				} else {
+					if (i > 0){
+						where = where.and();
+					}
 					where = where.like(type.toString(), "%" + map.get(type) + "%");
 				}
-			}*/ else if (type == SearchType.DATE){
+			} else if (type == SearchType.DATE){
 				if (i > 0){
 					where = where.and();
 				}

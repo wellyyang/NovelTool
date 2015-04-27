@@ -18,9 +18,9 @@ public class SearchManager {
 	// 评分
 	private String score;
 	// 当前关键词,即树上选择的节点信息
-	private String key;
-	
-	private List<Book> currentBookList = new ArrayList<Book>();
+	private String currentKey;
+	// 当前展示的书的列表
+	private List<Book> bookList = new ArrayList<Book>();
 
 	public String getCond() {
 		return cond;
@@ -54,16 +54,16 @@ public class SearchManager {
 		this.score = score;
 	}
 
-	public String getKey() {
-		return key;
+	public List<Book> getBookList() {
+		return Collections.unmodifiableList(bookList);
 	}
 
-	public void setKey(String key) {
-		this.key = key;
+	public String getCurrentKey() {
+		return currentKey;
 	}
 
-	public List<Book> getCurrentBookList() {
-		return Collections.unmodifiableList(currentBookList);
+	public void setCurrentKey(String currentKey) {
+		this.currentKey = currentKey;
 	}
 
 }
