@@ -132,6 +132,9 @@ public class MainFrame extends JFrame {
 	private JComboBox<String> monthComboBox = new JComboBox<String>(new String[]{"1", "2", "3"
 			, "4", "5", "6", "7", "8", "9", "10", "11", "12"});
 	
+	// 检索管理
+//	private SearchManager sm = SearchManager.getInstanse();
+	
 	public MainFrame(String title) {
 		super(title);
 		init();
@@ -1008,7 +1011,8 @@ public class MainFrame extends JFrame {
 				}
 				List<BookBean> list = FileUtil.deepSearch(new File(dir));
 				if (list == null){
-					throw new NullPointerException();
+					return;
+//					throw new NullPointerException();
 				}
 				SqliteHelper.importToDb(list, year, month);
 			}

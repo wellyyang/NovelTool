@@ -3,7 +3,6 @@
 import java.sql.Date;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +10,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.j256.ormlite.dao.Dao;
 import com.j256.ormlite.dao.DaoManager;
@@ -62,7 +62,7 @@ public class SqliteHelper {
 		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
 		}
-		init();
+//		init();
 	}
 
 	public static void cleanCache(){
@@ -106,10 +106,10 @@ public class SqliteHelper {
 							" where year = "  + year + 
 							" and month = " + month);
 					
-					String[] types = new String[results.size()];
-					for(int i = 0; i< types.length; i++){
-						types[i] = results.get(i)[0];
-					}
+					String[] types = results.stream()
+							.flatMap(e -> Stream.of(e[0]))
+							.collect(Collectors.toList())
+							.toArray(new String[0]);
 					deletePhantomTypes(types);
 					return null;
 				}
@@ -136,14 +136,10 @@ public class SqliteHelper {
 		if (types == null || types.length == 0){
 			return;
 		}
-		Set<String> typeSet = new HashSet<>();
-		for (String type: types){
-			String[] typeArr = type.split("\\s+");
-			for (String t: typeArr){
-				typeSet.add(t);
-			}
-		}
 		StringBuilder deletePhantomType = new StringBuilder("delete from type where ");
+		Set<String> typeSet = Stream.of(types)
+				.flatMap(s -> Stream.of(s.split("\\s+")))
+				.collect(Collectors.toSet());
 		Iterator<String> iter = typeSet.iterator();
 		while (iter.hasNext()) {
 //			String deletePhantomType = "delete from type where name = '" + t + "' " +
