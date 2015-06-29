@@ -77,16 +77,67 @@ public class FileUtil {
 	public static void writeFile(File f, String content){
         try {  
         	// 修改编码格式,默认为UTF-8
-        	OutputStreamWriter osw = new OutputStreamWriter(new FileOutputStream(f), "UTF-8");
+        	OutputStreamWriter osw = new OutputStreamWriter(new FileOutputStream(f, false), "UTF-8");
             BufferedWriter bw = new BufferedWriter(osw);
-//            FileWriter fw = new FileWriter(f, false);  
-//            BufferedWriter bw = new BufferedWriter(fw);
-            bw.write(content);// 往已有的文件上添加字符串  
+            bw.write(content);
             bw.close();  
-//            fw.close();  
             osw.close();
         } catch (Exception e) {  
             e.printStackTrace();  
         }  
+	}
+
+	/**
+	 * 复制文件
+	 * @param srcFile
+	 * @param targetDir
+	 * @throws Exception
+	 */
+	public static void copyFile(File srcFile, String targetDir) throws Exception {
+		FileInputStream in = new FileInputStream(srcFile);
+		File dir = new File(targetDir);
+		if (!dir.exists()) {
+			dir.mkdirs();
+		}
+		
+    	OutputStreamWriter osw = new OutputStreamWriter(
+    			new FileOutputStream(
+    					new File(targetDir, srcFile.getName())), "UTF-8");
+		
+    	InputStreamReader isr = new InputStreamReader(in);
+    	
+    	char[] chars = new char[1024];
+    	try {  
+            int count;  
+            while ((count = isr.read(chars)) != -1) {  
+                osw.write(chars, 0, count);
+            }  
+            isr.close();  
+            osw.close();  
+        } catch (IOException e) {  
+            e.printStackTrace();  
+        }  
+    	
+		/*
+		int length = 2097152;
+		FileOutputStream out = new FileOutputStream(new File(targetDir, srcFile
+				.getName()));
+		FileChannel inC = in.getChannel();
+		FileChannel outC = out.getChannel();
+		while(true) {
+			if (inC.position() == inC.size()) {
+				inC.close();
+				outC.close();
+				in.close();
+				out.close();
+				return;
+			}
+			if ((inC.size() - inC.position()) < 20971520)
+				length = (int) (inC.size() - inC.position());
+			else
+				length = 20971520;
+			inC.transferTo(inC.position(), length, outC);
+			inC.position(inC.position() + length);
+		}*/
 	}
 }

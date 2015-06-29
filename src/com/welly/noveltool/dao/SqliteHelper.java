@@ -62,7 +62,7 @@ public class SqliteHelper {
 		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
 		}
-//		init();
+		init();
 	}
 
 	public static void cleanCache(){
@@ -339,7 +339,8 @@ public class SqliteHelper {
 	
 	public static String getLatestPath(){
 		try {
-			return pathDao.queryForFirst(pathDao.queryBuilder().orderBy("id", false).prepare()).getPath();
+			String s = pathDao.queryForFirst(pathDao.queryBuilder().orderBy("id", false).prepare()).getPath();
+			return s;
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

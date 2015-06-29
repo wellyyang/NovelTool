@@ -13,7 +13,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.channels.FileChannel;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Comparator;
@@ -936,43 +937,9 @@ public class MainFrame extends JFrame {
 		}
 	}
 
-	/**
-	 * 利用nio管道复制文件
-	 * @param srcFile
-	 * @param targetDir
-	 * @throws Exception
-	 */
-	private void copyFile(File srcFile, String targetDir) throws Exception {
-		int length = 2097152;
-		FileInputStream in = new FileInputStream(srcFile);
-		File dir = new File(targetDir);
-		if (!dir.exists()) {
-			dir.mkdirs();
-		}
-		FileOutputStream out = new FileOutputStream(new File(targetDir, srcFile
-				.getName()));
-		FileChannel inC = in.getChannel();
-		FileChannel outC = out.getChannel();
-		while(true) {
-			if (inC.position() == inC.size()) {
-				inC.close();
-				outC.close();
-				in.close();
-				out.close();
-				return;
-			}
-			if ((inC.size() - inC.position()) < 20971520)
-				length = (int) (inC.size() - inC.position());
-			else
-				length = 20971520;
-			inC.transferTo(inC.position(), length, outC);
-			inC.position(inC.position() + length);
-		}
-	}
-
 	private void copyFile(File srcFile, String targetDir, Book book) throws Exception {
 		if (srcFile.exists()){
-			copyFile(srcFile, targetDir);
+			FileUtil.copyFile(srcFile, targetDir);
 		} else {
 			String content = SqliteHelper.getContent(book.getId());
 			File dir = new File(targetDir);
