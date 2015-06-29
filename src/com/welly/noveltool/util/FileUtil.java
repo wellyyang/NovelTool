@@ -5,13 +5,13 @@ import java.awt.Toolkit;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-//import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.List;
@@ -76,11 +76,15 @@ public class FileUtil {
 	
 	public static void writeFile(File f, String content){
         try {  
-            FileWriter fw = new FileWriter(f, false);  
-            BufferedWriter bw = new BufferedWriter(fw);
+        	// 修改编码格式,默认为UTF-8
+        	OutputStreamWriter osw = new OutputStreamWriter(new FileOutputStream(f), "UTF-8");
+            BufferedWriter bw = new BufferedWriter(osw);
+//            FileWriter fw = new FileWriter(f, false);  
+//            BufferedWriter bw = new BufferedWriter(fw);
             bw.write(content);// 往已有的文件上添加字符串  
             bw.close();  
-            fw.close();  
+//            fw.close();  
+            osw.close();
         } catch (Exception e) {  
             e.printStackTrace();  
         }  
