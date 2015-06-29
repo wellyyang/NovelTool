@@ -21,9 +21,9 @@ public class Entry {
 	public static void main(String[] args) {		
 		MainFrame mainFrame = new MainFrame("小说管理工具v" + version);
 		mainFrame.setVisible(true);
-//		mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		mainFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-		mainFrame.addWindowListener(new WindowAdapter() {
+		mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//		mainFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+		/*mainFrame.addWindowListener(new WindowAdapter() {
 			@Override
 			public void windowClosing(WindowEvent windowevent) {
 				int ret = JOptionPane.showConfirmDialog(mainFrame, "是否需要后台整理数据库文件?", "确认窗口"
@@ -34,7 +34,7 @@ public class Entry {
 				}
 				System.exit(0);
 			}
-		});
+		});*/
 	}
 }
 
