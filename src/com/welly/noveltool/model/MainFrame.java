@@ -10,11 +10,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionListener;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Comparator;
@@ -183,11 +179,14 @@ public class MainFrame extends JFrame {
 					latestPath = latestPathTextField.getText();
 				}
 
-				File file = new File(latestPath);
-				if (file.exists()){
-					openFile = file;
-				} else if (file.getParentFile().exists()){
-					openFile = file.getParentFile();
+				if(latestPath != null && !latestPath.isEmpty()){
+					File file = new File(latestPath);
+					while(!file.exists() && file.getParentFile() != null){
+						file = file.getParentFile();
+					}
+					if (file.exists()){
+						openFile = file;
+					}
 				}
 				
 				if (openFile == null){
