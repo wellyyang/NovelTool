@@ -5,7 +5,7 @@ import com.welly.noveltool.model.MainFrame;
 
 /**
  * 入口类,main方法所在类,调用主窗口并显示
- * 
+ * test
  */
 
 public class Entry {
